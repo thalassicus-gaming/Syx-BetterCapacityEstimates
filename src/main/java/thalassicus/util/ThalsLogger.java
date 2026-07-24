@@ -13,13 +13,9 @@ import java.time.LocalTime;
 // ============================================================================
 // THALS LOGGER
 // ============================================================================
-// Reusable file logger for Songs of Syx mods, translated from Victoria's
-// Godot/C# Logger class (used in Calliope and other projects).
-//
-// The game's own LOG.ln() does not write to a file or visible console in the
-// normal (non-IDE) launch path, making it useless for debugging installed
-// mods. This class writes directly to a chosen file via plain Java I/O, with
+// This class writes directly to a chosen file via plain Java I/O, with
 // leveled logging (ERROR/WARN/INFO/TRACE) matching the original design.
+// This allows end-users to provide log output to help debug problems.
 //
 // USAGE:
 //   private static final ThalsLogger log = new ThalsLogger(ThalsLogger.TRACE,
@@ -40,13 +36,6 @@ public class ThalsLogger {
     public int level;
     public String fileName;
 
-    // Whether this session has written to the log file yet. The FIRST write
-    // each game launch TRUNCATES the file (append=false) instead of
-    // appending to whatever's left over from the previous session - without
-    // this, the log grows indefinitely across every launch, mixing old and
-    // new session output together. Every write AFTER the first appends
-    // normally, so multiple log() calls within one session still accumulate
-    // correctly.
     private boolean truncatedThisSession = false;
 
     public ThalsLogger(int level) {
@@ -67,7 +56,7 @@ public class ThalsLogger {
                 file.write(String.format("%-16s %s%s%n", LocalTime.now(), prefix, body));
                 this.truncatedThisSession = true;
             } catch (IOException e) {
-                // nowhere to log the logging failure; ignore
+                // nowhere to log a logging failure; ignore
             }
         }
     }

@@ -1,7 +1,7 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Main" type="Application" factoryName="Application">
     <option name="MAIN_CLASS_NAME" value="init.Main" />
-    <module name="songs-of-syx-mod-example" />
+    <module name="better-capacity-estimates" />
     <option name="WORKING_DIRECTORY" value="E:/SteamLibrary/steamapps/common/Songs of Syx" />
     <extension name="coverage">
       <pattern>

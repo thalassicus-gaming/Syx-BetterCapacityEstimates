@@ -5,8 +5,8 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.example</groupId>
-    <artifactId>songs-of-syx-mod-example</artifactId>
-    <version>1.0.0</version>
+    <artifactId>better-capacity-estimates</artifactId>
+    <version>1.1.0</version>
 
     <profiles>
         <profile>
@@ -156,8 +156,8 @@
 
         <!-- These settings will go into the mods _Info.txt file -->
         <mod.version>${project.version}</mod.version>
-        <mod.name>Service Estimate Fix</mod.name>
-        <mod.description>This mod provides tools to better estimate the capacity of service rooms. If you like this mod, you can find my others on this mod's page in the Steam Workshop. Source code: `github.com/thalassicus-gaming`.</mod.description>
+        <mod.name>Better Capacity Estimates</mod.name>
+        <mod.description>This provides better estimates for the capacity of service rooms. If you like this mod, you can find my others on this mod's page in the Steam Workshop.</mod.description>
         <mod.author>Thalassicus</mod.author>
         <mod.info></mod.info>
         <!--

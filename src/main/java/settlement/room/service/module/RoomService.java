@@ -322,12 +322,14 @@ public abstract class RoomService {
             return 1.0;
         }
 
-        double capacityPerSlot = liveCapacityPerSlot();
+        double capacityPerSlot = 1.0;
+
+        capacityPerSlot = profileCapacityPerSlot();
         if (capacityPerSlot >= MIN_CAPACITY_PER_SLOT) {
             return capacityPerSlot;
         }
 
-        capacityPerSlot = profileCapacityPerSlot();
+        capacityPerSlot = liveCapacityPerSlot();
         if (capacityPerSlot >= MIN_CAPACITY_PER_SLOT) {
             return capacityPerSlot;
         }
@@ -350,7 +352,6 @@ public abstract class RoomService {
             return -1.0;
         }
 
-        // aggregate city load = city used slots / city total slots
         // peak city load = peak city used slots / city total slots
         // city capacity = eligible population / peak city load
         // capacity per slot = city capacity / total slots
@@ -375,7 +376,7 @@ public abstract class RoomService {
     // relies on rather than duplicating.
     public double profileCapacityPerSlot() {
         if (this.need == null) {
-            return -1.0;
+            //return -1.0;
         }
 
         ThalCapacityProfileManager manager = ThalCapacityProfileManager.instance();

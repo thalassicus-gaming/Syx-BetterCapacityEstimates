@@ -6,7 +6,7 @@
       <entry path="C:\Users\Thala\AppData\Roaming\songsofsyx\mods\Service Estimate Fix\V71\script\Service Estimate Fix.jar" />
     </classpathModifications>
     <option name="MAIN_CLASS_NAME" value="init.MainProcess" />
-    <module name="songs-of-syx-mod-example" />
+    <module name="better-capacity-estimates" />
     <option name="WORKING_DIRECTORY" value="E:/SteamLibrary/steamapps/common/Songs of Syx" />
     <method v="2">
       <option name="Make" enabled="true" />

@@ -9,6 +9,7 @@ import init.constant.C;
 import init.race.RACES;
 import init.sprite.UI.UI;
 import init.type.HTYPES;
+import java.awt.*;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -40,6 +41,7 @@ import util.gui.panel.GPanel;
 import view.interrupter.InterManager;
 import view.interrupter.Interrupter;
 import view.main.VIEW;
+
 public final class ThalCapacityUI implements SCRIPT, SCRIPT.SCRIPT_INSTANCE {
     public static final int PROFILE_NAME_MAX_CHARACTERS = 30;
     public static final int DESCRIPTION_MIN_CHARACTERS = 10;
@@ -65,9 +67,9 @@ public final class ThalCapacityUI implements SCRIPT, SCRIPT.SCRIPT_INSTANCE {
     private static final int CAPACITY_DECIMAL_PLACES = 2;
     private static final int HEADER_TABLE_MARGIN_TOP = 32;
     private static final int HEADER_TABLE_MARGIN_BOTTOM = 8;
-    private static final String CAPACITY_EXPLANATION = "Multiplied by slot count to get room capacity.";
-    private static final String SPECIES_EXPLANATION = "Information about city. Not used for calculations.";
-    private static final String HTYPE_EXPLANATION = "Information about city. Not used for calculations.";
+    private static final String CAPACITY_EXPLANATION = "Multiplied by slot count to estimate room capacity.";
+    private static final String SPECIES_EXPLANATION = "Informative, not used for calculations. Some species have different usage patterns.";
+    private static final String HTYPE_EXPLANATION = "Informative. Some people, such as children, have different room usage patterns.";
 
     // Whole numbers only: 0 decimal places also blocks typing a decimal
     // point in these cells outright, not just rounding one away afterward.
@@ -375,6 +377,15 @@ public final class ThalCapacityUI implements SCRIPT, SCRIPT.SCRIPT_INSTANCE {
         };
     }
 
+    private GButt.ButtPanel buildOpenFolderButton() {
+        return new GButt.ButtPanel("Open Folder") {
+            @Override
+            protected void clickA() {
+                ThalCapacityUI.this.openProfileFolder();
+            }
+        };
+    }
+
     private GButt.ButtPanel buildDeleteButton() {
         return new GButt.ButtPanel("Delete") {
             @Override
@@ -411,6 +422,7 @@ public final class ThalCapacityUI implements SCRIPT, SCRIPT.SCRIPT_INSTANCE {
         managementRow.addRightC(HORIZONTAL_INTER_PADDING, this.buildDuplicateButton());
         managementRow.addRightC(HORIZONTAL_INTER_PADDING, this.buildSaveButton());
         managementRow.addRightC(HORIZONTAL_INTER_PADDING, this.buildDeleteButton());
+        managementRow.addRightC(HORIZONTAL_INTER_PADDING, this.buildOpenFolderButton());
         managementRow.addRightC(HORIZONTAL_INTER_PADDING, this.buildActivateButton());
         managementRow.addRightC(HORIZONTAL_INTER_PADDING, this.activeProfileLabel);
         GuiSection metadataRow = new GuiSection();
@@ -608,6 +620,17 @@ public final class ThalCapacityUI implements SCRIPT, SCRIPT.SCRIPT_INSTANCE {
         this.lastKnownSelection = this.profileDropdown.selected();
     }
 
+    private void openProfileFolder() {
+        try {
+            Desktop.getDesktop().open(ThalCapacityProfileManager.PROFILE_DIRECTORY.toFile());
+        } catch (IOException exception) {
+            log.error(
+                    "openProfileFolder(): unable to open profile directory \"%s\": %s",
+                    ThalCapacityProfileManager.PROFILE_DIRECTORY,
+                    exception.toString()
+            );
+        }
+    }
 
 
     private void deleteSelectedProfile() {

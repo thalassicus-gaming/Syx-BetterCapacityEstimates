@@ -24,6 +24,8 @@ import snake2d.util.file.FilePutter;
 import snake2d.util.file.Json;
 import snake2d.util.file.JsonE;
 import thalassicus.util.ThalsLogger;
+import java.awt.Desktop;
+import java.nio.file.Path;
 
 // Owns the loaded profile collection, active profile, persistence, and
 // game-world interactions. ThalCapacityProfile remains a passive data
@@ -33,9 +35,10 @@ public final class ThalCapacityProfileManager implements SCRIPT, SCRIPT.SCRIPT_I
             ThalsLogger.INFO,
             System.getenv("APPDATA") + "\\songsofsyx\\logs\\ThalCapacityProfileManager.log"
     );
+
+    public static final Path PROFILE_DIRECTORY = Path.of(System.getenv("APPDATA"), "songsofsyx", "mods", "Better Capacity Estimates", "Profiles");
     private static final CharSequence NAME = "Thal Capacity Profile Manager";
     private static final CharSequence DESCRIPTION = "Internal utility. Manages saved capacity-planning profiles and which one is active for this save. Not a gameplay-affecting script.";
-    private static final Path PROFILES_DIRECTORY = Path.of(System.getenv("APPDATA"), "songsofsyx", "mods", "Service Estimate Fix", "Profiles");
     private static final double MIN_CAPACITY_PER_SLOT = 0.99;
     // Debug-only: refreshes a reserved profile from live data once per day.
     private static final boolean DAILY_REFRESH_ENABLED = false;
@@ -160,11 +163,11 @@ public final class ThalCapacityProfileManager implements SCRIPT, SCRIPT.SCRIPT_I
     // Skip unreadable profile files rather than aborting the entire load.
     public void loadAllProfiles() {
         this.loadedProfiles.clear();
-        if (!Files.isDirectory(PROFILES_DIRECTORY)) {
+        if (!Files.isDirectory(PROFILE_DIRECTORY)) {
             return;
         }
 
-        try (var paths = Files.list(PROFILES_DIRECTORY)) {
+        try (var paths = Files.list(PROFILE_DIRECTORY)) {
             for (Path path : paths.toList()) {
                 try {
                     this.loadedProfiles.add(loadProfileFromFile(path));
@@ -258,7 +261,7 @@ public final class ThalCapacityProfileManager implements SCRIPT, SCRIPT.SCRIPT_I
         JsonE json = profile.serialize();
 
         try {
-            Files.createDirectories(PROFILES_DIRECTORY);
+            Files.createDirectories(PROFILE_DIRECTORY);
         } catch (IOException e) {
             return false;
         }
@@ -275,7 +278,7 @@ public final class ThalCapacityProfileManager implements SCRIPT, SCRIPT.SCRIPT_I
     }
 
     private Path profileFilePath(String displayName) {
-        return PROFILES_DIRECTORY.resolve(sanitizeFileName(displayName) + ".txt");
+        return PROFILE_DIRECTORY.resolve(sanitizeFileName(displayName) + ".txt");
     }
 
     // Record only observed capacities. Services with no live data are left
