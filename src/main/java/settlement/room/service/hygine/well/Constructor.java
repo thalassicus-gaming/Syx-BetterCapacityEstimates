@@ -26,33 +26,26 @@ import snake2d.util.file.Json;
 import snake2d.util.rnd.RND;
 import util.rendering.RenderData;
 import util.rendering.ShadowBatch;
-// MOD START
-import thalassicus.capacity.ThalServiceFurnisherStat;
-// MOD END
 
 final class Constructor extends Furnisher {
    private final ROOM_WELL blue;
-   // MOD START
-   // Was: new FurnisherStat.FurnisherStatI(this) - a bare integer with no
-   // capacity estimate at all, which is exactly why Well's construction
-   // preview and post-construction panel never showed one. Swapped for a
-   // NEED-based estimating stat, matching how every other service room
-   // (Lavatory, Speaker, etc.) already displays capacity.
-   final FurnisherStat services;
-   // MOD END
-   private static final Constructor.Founatain fountain = new Constructor.Founatain();
+    // MOD START
+    // Incorrectly used FurnisherStatI instead of FurnisherStatServices.
+    final FurnisherStat services;
+    // MOD END
+   private static final Founatain fountain = new Founatain();
    static final int codeService = 1;
 
-   protected Constructor(final ROOM_WELL blue, RoomInitData init) throws IOException {
-      super(init, 1, 1, 88, 44);
-      this.blue = blue;
-      // MOD START
-      this.services = new ThalServiceFurnisherStat(this, this.blue);
-      // MOD END
-      Json sp = init.data().json("SPRITES");
-      final RoomSpriteCombo sStencil = new RoomSpriteCombo(sp, "STONE_RING_STENCIL_COMBO");
-      final RoomSprite sRoof = new RoomSprite1x1(sp, "ROOF_EDGE_1X1") {
-         @Override
+    protected Constructor(final ROOM_WELL blue, RoomInitData init) throws IOException {
+        super(init, 1, 1, 88, 44);
+        this.blue = blue;
+        // MOD START
+        this.services = new FurnisherStat.FurnisherStatServices(this, this.blue);
+        // MOD END
+        Json sp = init.data().json("SPRITES");
+        final RoomSpriteCombo sStencil = new RoomSpriteCombo(sp, "STONE_RING_STENCIL_COMBO");
+        final RoomSprite sRoof = new RoomSprite1x1(sp, "ROOF_EDGE_1X1") {
+            @Override
          public boolean render(SPRITE_RENDERER r, ShadowBatch s, int data, RenderData.RenderIterator it, double degrade, boolean isCandle) {
             FurnisherItem i = SETT.ROOMS().fData.item.get(it.tile());
             if ((i.width() & 1) == 0) {

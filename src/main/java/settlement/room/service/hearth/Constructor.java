@@ -21,29 +21,22 @@ import snake2d.util.datatypes.DIR;
 import snake2d.util.file.Json;
 import util.rendering.RenderData;
 import util.rendering.ShadowBatch;
-// MOD START
-import thalassicus.capacity.ThalServiceFurnisherStat;
-// MOD END
 
 final class Constructor extends Furnisher {
    private final ROOM_HEARTH blue;
-   // MOD START
-   // Was: new FurnisherStat.FurnisherStatI(this) - a bare integer with no
-   // capacity estimate at all, which is exactly why Hearth's construction
-   // preview and post-construction panel never showed one. Swapped for a
-   // NEED-based estimating stat, matching how every other service room
-   // (Lavatory, Speaker, etc.) already displays capacity.
-   final FurnisherStat services;
-   // MOD END
+    // MOD START
+    // Incorrectly used FurnisherStatI instead of FurnisherStatServices.
+    final FurnisherStat services;
+    // MOD END
    static final int codeService = 1;
    static final int codeFire = 2;
 
    protected Constructor(final ROOM_HEARTH blue, RoomInitData init) throws IOException {
       super(init, 1, 1, 88, 44);
       this.blue = blue;
-      // MOD START
-      this.services = new ThalServiceFurnisherStat(this, this.blue);
-      // MOD END
+       // MOD START
+       this.services = new FurnisherStat.FurnisherStatServices(this, this.blue);
+       // MOD END
       Json sp = init.data().json("SPRITES");
       RoomSprite sBench = new RoomSprite1x1(sp, "BENCH_1X1") {
          @Override
