@@ -622,11 +622,11 @@ public final class ThalCapacityUI implements SCRIPT, SCRIPT.SCRIPT_INSTANCE {
 
     private void openProfileFolder() {
         try {
-            Desktop.getDesktop().open(ThalCapacityProfileManager.PROFILE_DIRECTORY.toFile());
+            Desktop.getDesktop().open(ThalCapacityProfileManager.PROFILES_DIRECTORY.toFile());
         } catch (IOException exception) {
             log.error(
                     "openProfileFolder(): unable to open profile directory \"%s\": %s",
-                    ThalCapacityProfileManager.PROFILE_DIRECTORY,
+                    ThalCapacityProfileManager.PROFILES_DIRECTORY,
                     exception.toString()
             );
         }
@@ -766,6 +766,7 @@ public final class ThalCapacityUI implements SCRIPT, SCRIPT.SCRIPT_INSTANCE {
             return;
         }
 
+        /*
         if (manager.isDefaultProfileName(this.scratchProfile.displayName())) {
             GButt.ButtPanel duplicateButton = new GButt.ButtPanel("Duplicate") {
                 @Override
@@ -795,6 +796,7 @@ public final class ThalCapacityUI implements SCRIPT, SCRIPT.SCRIPT_INSTANCE {
             );
             return;
         }
+         */
 
         ThalCapacityProfile collidingProfile = manager.findProfileBySerializedName(this.scratchProfile.displayName());
         boolean isRealCollision = collidingProfile != null && collidingProfile != this.selectedStoredProfile;

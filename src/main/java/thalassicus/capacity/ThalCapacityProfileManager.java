@@ -1,11 +1,12 @@
 // ThalCapacityProfileManager.java
-// Document Version 1.5.0
+// Document Version 1.5.1
 // Creation date: 2026/07/18
 // Creator: Thalassicus
 
 package thalassicus.capacity;
 
 import game.time.TIME;
+import init.paths.PATHS;
 import init.race.RACES;
 import init.race.Race;
 import init.type.HTYPE;
@@ -24,8 +25,6 @@ import snake2d.util.file.FilePutter;
 import snake2d.util.file.Json;
 import snake2d.util.file.JsonE;
 import thalassicus.util.ThalsLogger;
-import java.awt.Desktop;
-import java.nio.file.Path;
 
 // Owns the loaded profile collection, active profile, persistence, and
 // game-world interactions. ThalCapacityProfile remains a passive data
@@ -33,10 +32,10 @@ import java.nio.file.Path;
 public final class ThalCapacityProfileManager implements SCRIPT, SCRIPT.SCRIPT_INSTANCE {
     public static final ThalsLogger log = new ThalsLogger(
             ThalsLogger.INFO,
-            System.getenv("APPDATA") + "\\songsofsyx\\logs\\ThalCapacityProfileManager.log"
+            PATHS.local().LOGS.get().resolve("ThalCapacityProfileManager.log").toString()
     );
 
-    public static final Path PROFILE_DIRECTORY = Path.of(System.getenv("APPDATA"), "songsofsyx", "mods", "Better Capacity Estimates", "Profiles");
+    public static final Path PROFILES_DIRECTORY = PATHS.local().ROOT.get().resolve("mods-data").resolve("thalassicus").resolve("capacity-profiles");
     private static final CharSequence NAME = "Thal Capacity Profile Manager";
     private static final CharSequence DESCRIPTION = "Internal utility. Manages saved capacity-planning profiles and which one is active for this save. Not a gameplay-affecting script.";
     private static final double MIN_CAPACITY_PER_SLOT = 0.99;
@@ -163,11 +162,12 @@ public final class ThalCapacityProfileManager implements SCRIPT, SCRIPT.SCRIPT_I
     // Skip unreadable profile files rather than aborting the entire load.
     public void loadAllProfiles() {
         this.loadedProfiles.clear();
-        if (!Files.isDirectory(PROFILE_DIRECTORY)) {
+        this.seedDefaultProfileIfFirstRun();
+        if (!Files.isDirectory(PROFILES_DIRECTORY)) {
             return;
         }
 
-        try (var paths = Files.list(PROFILE_DIRECTORY)) {
+        try (var paths = Files.list(PROFILES_DIRECTORY)) {
             for (Path path : paths.toList()) {
                 try {
                     this.loadedProfiles.add(loadProfileFromFile(path));
@@ -180,6 +180,26 @@ public final class ThalCapacityProfileManager implements SCRIPT, SCRIPT.SCRIPT_I
         // Leave loadedProfiles as whatever was successfully read so far.
 
         this.sortLoadedProfiles();
+    }
+
+    private void seedDefaultProfileIfFirstRun() {
+        if (Files.isDirectory(PROFILES_DIRECTORY)) {
+            return;
+        }
+
+        try {
+            log.info("seedDefaultProfileIfFirstRun(): creating PROFILES_DIRECTORY = " + PROFILES_DIRECTORY);
+            Files.createDirectories(PROFILES_DIRECTORY);
+            try (var input = ThalCapacityProfileManager.class.getResourceAsStream("/default_profile.txt")) {
+                if (input == null) {
+                    log.error("seedDefaultProfileIfFirstRun(): resource \"/default_profile.txt\" was not found in the JAR.");
+                    return;
+                }
+                Files.copy(input,PROFILES_DIRECTORY.resolve(DEFAULT_PROFILE_FILE_NAME + ".txt"));
+            }
+        } catch (IOException exception) {
+            log.error("seedDefaultProfileIfFirstRun(): unable to seed default profile: %s",exception.toString());
+        }
     }
 
     // Clears existing data so removed blueprints do not leave stale entries.
@@ -261,7 +281,7 @@ public final class ThalCapacityProfileManager implements SCRIPT, SCRIPT.SCRIPT_I
         JsonE json = profile.serialize();
 
         try {
-            Files.createDirectories(PROFILE_DIRECTORY);
+            Files.createDirectories(PROFILES_DIRECTORY);
         } catch (IOException e) {
             return false;
         }
@@ -278,7 +298,7 @@ public final class ThalCapacityProfileManager implements SCRIPT, SCRIPT.SCRIPT_I
     }
 
     private Path profileFilePath(String displayName) {
-        return PROFILE_DIRECTORY.resolve(sanitizeFileName(displayName) + ".txt");
+        return PROFILES_DIRECTORY.resolve(sanitizeFileName(displayName) + ".txt");
     }
 
     // Record only observed capacities. Services with no live data are left
