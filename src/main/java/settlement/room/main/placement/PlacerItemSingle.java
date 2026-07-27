@@ -11,6 +11,7 @@ import settlement.room.main.furnisher.FurnisherItem;
 import settlement.room.main.furnisher.FurnisherItemGroup;
 import settlement.room.main.furnisher.FurnisherItemTile;
 import settlement.room.main.furnisher.FurnisherStat;
+import settlement.room.service.module.RoomService;
 import settlement.tilemap.terrain.TBuilding;
 import snake2d.CORE;
 import snake2d.SPRITE_RENDERER;
@@ -22,6 +23,7 @@ import snake2d.util.datatypes.Rec;
 import snake2d.util.file.Alloc;
 import snake2d.util.sprite.SPRITE;
 import util.gui.misc.GBox;
+import util.info.GFORMAT;
 import util.text.D;
 import util.text.Dic;
 import view.tool.PLACABLE;
@@ -298,21 +300,37 @@ class PlacerItemSingle extends PlacableFixed {
             box.space();
         }
 
-        // START MOD
-        for (FurnisherStat s : this.group.blueprint.stats()) {
-            double am = this.group.item(this.size(), this.rot()).stat(s);
-            if (am != 0.0) {
-                box.NL();
-                if (s instanceof FurnisherStat.FurnisherStatServices) {
+        // MOD START
+        for (FurnisherStat stat : this.group.blueprint.stats()) {
+            double statValue = this.group.item(this.size(), this.rot()).stat(stat);
+            if (statValue != 0.0) {
+
+                if (stat instanceof FurnisherStat.FurnisherStatServices servicesStat) {
+                    RoomService service = servicesStat.serviceHaser().service();
+                    box.NL();
                     box.add(box.text().lablify().add(Dic.¤¤Capacity));
+                    box.add(box.text().lablify().add(": "));
+
+                    box.NL();
+                    box.add(box.text().normalify().add((int) Math.ceil(statValue * service.liveCapacityPerSlot())));
+                    box.add(box.text().normalify().add(" (Live)"));
+
+                    box.NL();
+                    box.add(box.text().normalify().add((int) Math.ceil(statValue * service.profileCapacityPerSlot())));
+                    box.add(box.text().normalify().add(" (Profile)"));
+
+                    box.NL();
+                    box.add(box.text().normalify().add((int) Math.ceil(statValue * service.hypotheticalCapacityPerSlot())));
+                    box.add(box.text().normalify().add(" (Estimate)"));
                 } else {
-                    box.add(box.text().lablify().add(s.name()));
+                    box.NL();
+                    box.add(box.text().lablify().add(stat.name()));
+                    box.add(box.text().lablify().add(": "));
+                    box.add(stat.format(box.text(), statValue));
                 }
-                box.add(box.text().lablify().add(": "));
-                box.add(s.format(box.text(), am));
             }
         }
-        // END MOD
+        // MOD END
 
         box.NL(8);
         this.group.blueprint.placeInfo(box, this.group.item(this.size(), this.rot()), x1, y1);

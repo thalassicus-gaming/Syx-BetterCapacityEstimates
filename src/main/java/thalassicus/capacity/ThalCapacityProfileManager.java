@@ -205,6 +205,7 @@ public final class ThalCapacityProfileManager implements SCRIPT, SCRIPT.SCRIPT_I
     }
 
     public static void openProfileFolder() {
+        log.info("openProfileFolder(): Attempting to open profile folder.");
         try {
             if (!Desktop.isDesktopSupported()) {
                 log.error("openProfileFolder(): Desktop API is unavailable on this platform.");
@@ -219,6 +220,7 @@ public final class ThalCapacityProfileManager implements SCRIPT, SCRIPT.SCRIPT_I
 
             Files.createDirectories(PROFILES_DIRECTORY);
             desktop.open(PROFILES_DIRECTORY.toFile());
+            log.info("openProfileFolder(): Successfully opened profile folder.");
         } catch (IOException | SecurityException exception) {
             log.error(
                     "openProfileFolder(): unable to open profile directory \"%s\": %s",

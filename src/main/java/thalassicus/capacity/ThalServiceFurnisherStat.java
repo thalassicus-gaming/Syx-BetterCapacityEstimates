@@ -9,7 +9,6 @@ import settlement.room.main.furnisher.Furnisher;
 import settlement.room.main.furnisher.FurnisherStat;
 import settlement.room.service.module.RoomService;
 import snake2d.util.datatypes.AREA;
-import util.gui.misc.GBox;
 import util.gui.misc.GText;
 import util.info.GFORMAT;
 
@@ -45,11 +44,11 @@ public class ThalServiceFurnisherStat extends FurnisherStat {
     private static final CharSequence DESCRIPTION =
             "Services compete for a subject's limited time, so adding new types of services will reduce demand on this one.";
 
-    private final RoomService.ROOM_SERVICE_HASER room;
+    private final RoomService.ROOM_SERVICE_HASER p;
 
     public ThalServiceFurnisherStat(Furnisher furnisher, RoomService.ROOM_SERVICE_HASER room) {
         super(furnisher, LABEL, DESCRIPTION, 0.0);
-        this.room = room;
+        this.p = room;
     }
 
     @Override
@@ -58,20 +57,17 @@ public class ThalServiceFurnisherStat extends FurnisherStat {
     }
 
     @Override
-    public GText format(GText t, double slotCount) {
-        appendCapacityText(t, (long) slotCount);
+    public GText format(GText t, double acc) {
+        GFORMAT.i(t.normalify(), (int) Math.ceil(acc * p.service().liveCapacityPerSlot()));
+        t.lablify().add(" (Live)");
+        t.NL();
+
+        GFORMAT.i(t.normalify(), (int) Math.ceil(acc * p.service().profileCapacityPerSlot()));
+        t.lablify().add(" (Profile)");
+        t.NL();
+
+        GFORMAT.i(t.normalify(), (int) Math.ceil(acc * p.service().hypotheticalCapacityPerSlot()));
+        t.lablify().add(" (Estimate)");
         return t;
-    }
-    public void appendCapacityText(GText text, long totalSlots) {
-        GFORMAT.i(text.normalify(), (int) Math.ceil(totalSlots * room.service().liveCapacityPerSlot()));
-        text.lablify().add(" (Live)");
-        text.NL();
-
-        GFORMAT.i(text.normalify(), (int) Math.ceil(totalSlots * room.service().profileCapacityPerSlot()));
-        text.lablify().add(" (Profile)");
-        text.NL();
-
-        GFORMAT.i(text.normalify(), (int) Math.ceil(totalSlots * room.service().hypotheticalCapacityPerSlot()));
-        text.lablify().add(" (Estimate)");
     }
 }
