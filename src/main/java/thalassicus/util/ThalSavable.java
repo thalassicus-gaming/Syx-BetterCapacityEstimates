@@ -9,6 +9,8 @@ import game.GameDisposable;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+
+import init.paths.PATHS;
 import script.SCRIPT;
 import snake2d.util.file.FileGetter;
 import snake2d.util.file.FilePutter;
@@ -67,7 +69,7 @@ public final class ThalSavable implements SCRIPT, SCRIPT.SCRIPT_INSTANCE {
 
   public static final ThalsLogger log = new ThalsLogger(
       ThalsLogger.INFO,
-      System.getenv("APPDATA") + "\\songsofsyx\\logs\\ThalSavable.log"
+      PATHS.local().LOGS.get().resolve("ThalSavable.log").toString()
   );
 
   private static ThalSavable instance;

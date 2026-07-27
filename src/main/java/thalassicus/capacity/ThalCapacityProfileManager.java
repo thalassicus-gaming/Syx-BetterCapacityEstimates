@@ -11,6 +11,8 @@ import init.race.RACES;
 import init.race.Race;
 import init.type.HTYPE;
 import init.type.HTYPES;
+
+import java.awt.*;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -199,6 +201,30 @@ public final class ThalCapacityProfileManager implements SCRIPT, SCRIPT.SCRIPT_I
             }
         } catch (IOException exception) {
             log.error("seedDefaultProfileIfFirstRun(): unable to seed default profile: %s",exception.toString());
+        }
+    }
+
+    public static void openProfileFolder() {
+        try {
+            if (!Desktop.isDesktopSupported()) {
+                log.error("openProfileFolder(): Desktop API is unavailable on this platform.");
+                return;
+            }
+
+            Desktop desktop = Desktop.getDesktop();
+            if (!desktop.isSupported(Desktop.Action.OPEN)) {
+                log.error("openProfileFolder(): Desktop OPEN action is unavailable on this platform.");
+                return;
+            }
+
+            Files.createDirectories(PROFILES_DIRECTORY);
+            desktop.open(PROFILES_DIRECTORY.toFile());
+        } catch (IOException | SecurityException exception) {
+            log.error(
+                    "openProfileFolder(): unable to open profile directory \"%s\": %s",
+                    PROFILES_DIRECTORY,
+                    exception.toString()
+            );
         }
     }
 

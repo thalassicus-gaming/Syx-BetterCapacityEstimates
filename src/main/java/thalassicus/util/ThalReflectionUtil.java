@@ -5,6 +5,8 @@
 
 package thalassicus.util;
 
+import init.paths.PATHS;
+
 import java.lang.reflect.Field;
 import java.util.Optional;
 
@@ -23,7 +25,7 @@ public final class ThalReflectionUtil {
 
     private static final ThalsLogger log = new ThalsLogger(
             ThalsLogger.INFO,
-            System.getenv("APPDATA") + "\\songsofsyx\\logs\\ThalReflectionUtil.log"
+            PATHS.local().LOGS.get().resolve("ThalReflectionUtil.log").toString()
     );
 
     private ThalReflectionUtil() {

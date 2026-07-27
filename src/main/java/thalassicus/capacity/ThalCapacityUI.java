@@ -6,11 +6,13 @@
 package thalassicus.capacity;
 import game.GAME;
 import init.constant.C;
+import init.paths.PATHS;
 import init.race.RACES;
 import init.sprite.UI.UI;
 import init.type.HTYPES;
 import java.awt.*;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -48,7 +50,7 @@ public final class ThalCapacityUI implements SCRIPT, SCRIPT.SCRIPT_INSTANCE {
 
     private static final ThalsLogger log = new ThalsLogger(
             ThalsLogger.INFO,
-            System.getenv("APPDATA") + "\\songsofsyx\\logs\\ThalCapacityUI.log"
+            PATHS.local().LOGS.get().resolve("ThalCapacityUI.log").toString()
     );
     private static final CharSequence SCRIPT_NAME = "Thal Capacity UI";
     private static final CharSequence SCRIPT_DESCRIPTION = "Internal utility script for Service Estimate Fix. Displays the Capacity Profiles panel. Not a gameplay-affecting script.";
@@ -381,7 +383,7 @@ public final class ThalCapacityUI implements SCRIPT, SCRIPT.SCRIPT_INSTANCE {
         return new GButt.ButtPanel("Open Folder") {
             @Override
             protected void clickA() {
-                ThalCapacityUI.this.openProfileFolder();
+                ThalCapacityProfileManager.openProfileFolder();
             }
         };
     }
@@ -618,18 +620,6 @@ public final class ThalCapacityUI implements SCRIPT, SCRIPT.SCRIPT_INSTANCE {
 
     private void syncLastKnownSelection() {
         this.lastKnownSelection = this.profileDropdown.selected();
-    }
-
-    private void openProfileFolder() {
-        try {
-            Desktop.getDesktop().open(ThalCapacityProfileManager.PROFILES_DIRECTORY.toFile());
-        } catch (IOException exception) {
-            log.error(
-                    "openProfileFolder(): unable to open profile directory \"%s\": %s",
-                    ThalCapacityProfileManager.PROFILES_DIRECTORY,
-                    exception.toString()
-            );
-        }
     }
 
 
