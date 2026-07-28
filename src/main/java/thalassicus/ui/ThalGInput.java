@@ -34,6 +34,12 @@ public class ThalGInput extends CLICKABLE.ClickableAbs {
         this.body.setWidth(w + PADDING_WIDTH);
         this.body.setHeight(input.height() + PADDING_HEIGHT);
     }
+    public ThalGInput(StringInputSprite input, int extraPaddingWidth) {
+        this.input = input;
+        int w = perCharacterAdvance(input.font()) * (input.text().length() + input.text().spaceLeft());
+        this.body.setWidth(w + PADDING_WIDTH + extraPaddingWidth);
+        this.body.setHeight(input.height() + PADDING_HEIGHT);
+    }
 
     /*
      * Returns the color used to render the input text.

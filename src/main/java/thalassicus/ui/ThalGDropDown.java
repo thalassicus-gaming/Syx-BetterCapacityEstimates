@@ -40,11 +40,11 @@ import view.main.VIEW;
 public class ThalGDropDown<E extends CLICKABLE & ThalDropDownEntry> extends CLICKABLE.ClickableAbs implements CLICKABLE {
 
     // Padding above and below the selected entry.
-    private static final int VERTICAL_MARGIN = 5;
+    public static final int VERTICAL_MARGIN = 5;
     // Left padding for the selected entry's text.
-    private static final int HORIZONTAL_TEXT_MARGIN = 4;
+    public static final int HORIZONTAL_TEXT_MARGIN = 4;
     // Reserve space so the arrow never overlaps the selected text.
-    private static final int ARROW_ICON_RESERVED_WIDTH = 24;
+    public static final int ARROW_ICON_RESERVED_WIDTH = 24;
 
     private E selected;
     private GuiSection expansion = new GuiSection();

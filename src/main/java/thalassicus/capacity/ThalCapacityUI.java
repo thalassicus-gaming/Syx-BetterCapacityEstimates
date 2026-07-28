@@ -1,5 +1,5 @@
 // ThalCapacityUI.java
-// Document Version 1.21.0
+// Document Version 1.22.1
 // Creation date: 2026/07/19
 // Creator: Thalassicus
 
@@ -10,9 +10,8 @@ import init.paths.PATHS;
 import init.race.RACES;
 import init.sprite.UI.UI;
 import init.type.HTYPES;
-import java.awt.*;
+
 import java.io.IOException;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -40,6 +39,7 @@ import util.gui.misc.GBox;
 import util.gui.misc.GButt;
 import util.gui.misc.GText;
 import util.gui.panel.GPanel;
+import util.gui.slider.GSliderVer;
 import view.interrupter.InterManager;
 import view.interrupter.Interrupter;
 import view.main.VIEW;
@@ -55,12 +55,27 @@ public final class ThalCapacityUI implements SCRIPT, SCRIPT.SCRIPT_INSTANCE {
     private static final CharSequence SCRIPT_NAME = "Thal Capacity UI";
     private static final CharSequence SCRIPT_DESCRIPTION = "Internal utility script for Service Estimate Fix. Displays the Capacity Profiles panel. Not a gameplay-affecting script.";
     private static final int LABEL_COLUMN_WIDTH = 180;
-    private static final int CELLS_PER_ROW = 4;
     private static final int CELL_HORIZONTAL_MARGIN = 16;
     private static final int HORIZONTAL_INTER_PADDING = 8;
     private static final int SECTION_MARGIN = 16;
-    private static final double PANEL_WIDTH_FRACTION = 0.6;
-    private static final double PANEL_HEIGHT_FRACTION = 0.6;
+
+    // Upper bounds only. The panel is sized to fit its own content (see
+    // buildUI/ensureContentBuilt); these cap it so a heavily-modded game
+    // with hundreds of rooms can't produce a panel larger than the screen.
+    private static final double PANEL_WIDTH_FRACTION = 0.9;
+    private static final double PANEL_HEIGHT_FRACTION = 0.9;
+
+    // Floor for the fit-to-content width, so the panel never collapses to
+    // something unusable if the button row measures unexpectedly narrow.
+    private static final int PANEL_MINIMUM_WIDTH = 640;
+
+    // Arbitrary square used once to measure GPanel's own border insets by
+    // difference (outer minus inner). Reading the real numbers beats
+    // hardcoding a guess at the decorative frame's thickness, which is
+    // sprite-driven and not exposed anywhere.
+    private static final int PANEL_INSET_PROBE_DIMENSION = 1000;
+
+    private static final String ACTIVE_PROFILE_PREFIX = "Active: ";
     private static final int VIEWPORT_WHEEL_SCROLL_STEP = 40;
     private static final double CAPACITY_MINIMUM = 1.0;
     private static final double CAPACITY_MAXIMUM = 99999.0;
@@ -87,6 +102,7 @@ public final class ThalCapacityUI implements SCRIPT, SCRIPT.SCRIPT_INSTANCE {
 
     private static final int INVALID_LABELS_MAX_LENGTH = 50;
     private static final String INVALID_LABELS_FALLBACK = "check red values";
+    public static final int MANAGEMENT_WIDTH_PADDING = 10;
     private static ThalCapacityUI instance;
     private final GuiSection topSection = new GuiSection();
 
@@ -140,6 +156,27 @@ public final class ThalCapacityUI implements SCRIPT, SCRIPT.SCRIPT_INSTANCE {
     private ProfileDropdownEntry lastKnownSelection;
     private boolean isDiscardPromptPending = false;
     private boolean isContentBuilt = false;
+
+    // Measured in buildUI() and consumed in ensureContentBuilt(). Width is
+    // settled first because the description field's character capacity and
+    // the column count both depend on it, while height can only be known
+    // once the row count is known - which in turn needs the column count.
+    private int panelWidth;
+    private int panelHorizontalInset;
+    private int panelVerticalInset;
+    private int contentAreaWidth;
+
+    // Set by buildManagementRow() rather than read back from the assembled
+    // row's own body(), because the active-profile label reports its
+    // CURRENT text width - zero while still empty at build time - so the
+    // row would measure short and then overflow once a name appeared.
+    private int managementRowWidth;
+
+    // Derived from contentAreaWidth against a measured cell, rather than a
+    // fixed constant. A hardcoded column count only fits one combination of
+    // UI scale, font size and mod set; anything else overflows the panel
+    // horizontally, which the viewport cannot scroll or clip away.
+    private int cellsPerRow = 1;
 
     // Guards syncStoredProfilesIntoDropdown() - runs exactly once, on
     // this SCRIPT_INSTANCE's own first update() call. See that method's
@@ -211,33 +248,66 @@ public final class ThalCapacityUI implements SCRIPT, SCRIPT.SCRIPT_INSTANCE {
     //
     // Construction order matters. Several widgets depend on dimensions
     // established by earlier widgets, and the compiler cannot enforce it.
+    // Splits panel geometry across two phases, because width and height
+    // become knowable at different times. Width depends only on the
+    // management row, which is fully determined here. Height depends on the
+    // number of content rows, which depends on the column count, which
+    // depends on width - so it is settled in ensureContentBuilt() once the
+    // content actually exists. Deferring it there also avoids querying
+    // SETT.ROOMS() (via ThalRoomServiceRegistry) during createInstance,
+    // keeping this method's game-state assumptions unchanged.
     private void buildUI() {
-        int panelWidth = (int) (C.WIDTH() * PANEL_WIDTH_FRACTION);
-        int panelHeight = (int) (C.HEIGHT() * PANEL_HEIGHT_FRACTION);
-
         this.mainPanel = new GPanel();
-        this.panelInterrupter = new PanelInterrupter();
-        this.confirmationBox = new ThalIPromtButtons(VIEW.inters().manager);
-        this.activeProfileLabel = new GText(UI.FONT().S, "").normalify();
-        this.newProfileEntry = thalassicus.capacity.ThalCapacityUI.ProfileDropdownEntry.sentinel(RESERVED_NAME_NEW_PROFILE, thalassicus.capacity.ThalCapacityUI.ProfileDropdownEntry.Kind.NEW_PROFILE);
-        this.liveDataEntry = thalassicus.capacity.ThalCapacityUI.ProfileDropdownEntry.sentinel(RESERVED_NAME_LIVE_DATA, thalassicus.capacity.ThalCapacityUI.ProfileDropdownEntry.Kind.LIVE_DATA);
-
-        this.displayNameField = this.buildTextField("Display Name", PROFILE_NAME_MAX_CHARACTERS, this.scratchProfile::displayNameSet);
-        this.profileDropdown = this.buildProfileDropdown(this.displayNameField.body().width());
-        int descriptionAvailableWidth = panelWidth - this.displayNameField.body().width() - HORIZONTAL_INTER_PADDING;
-        int descriptionCapacity = Math.max(DESCRIPTION_MIN_CHARACTERS, (descriptionAvailableWidth - ThalGInput.PADDING_WIDTH) / ThalGInput.perCharacterAdvance(UI.FONT().S));
-        this.descriptionField = this.buildTextField("Description", descriptionCapacity, this.scratchProfile::descriptionSet);
-        this.buildTopSection();
-        int viewportY = this.topSection.body().height() + SECTION_MARGIN;
-        this.contentViewport = new ThalGSlidableViewportVertical(panelWidth, panelHeight - viewportY, VIEWPORT_WHEEL_SCROLL_STEP);
         this.mainPanel.setBig();
         this.mainPanel.setTitle("Capacity Profile Editor");
         this.mainPanel.setCloseAction(this::closePanel);
-        this.mainPanel.setDim(panelWidth, panelHeight);
-        this.mainPanel.body().centerX(C.DIM());
-        this.mainPanel.body().centerY(C.DIM());
-        this.topSection.body().moveX1Y1(this.mainPanel.inner().x1(), this.mainPanel.inner().y1());
-        this.contentViewport.body().moveX1Y1(this.mainPanel.inner().x1(), this.mainPanel.inner().y1() + viewportY);
+        this.measurePanelInsets();
+
+        this.panelInterrupter = new PanelInterrupter();
+        this.confirmationBox = new ThalIPromtButtons(VIEW.inters().manager);
+        this.newProfileEntry = ProfileDropdownEntry.sentinel(RESERVED_NAME_NEW_PROFILE, ProfileDropdownEntry.Kind.NEW_PROFILE);
+        this.liveDataEntry = ProfileDropdownEntry.sentinel(RESERVED_NAME_LIVE_DATA, ProfileDropdownEntry.Kind.LIVE_DATA);
+
+        int activeLabelWidth = ThalGInput.perCharacterAdvance(UI.FONT().S)
+                * (ACTIVE_PROFILE_PREFIX.length() + PROFILE_NAME_MAX_CHARACTERS);
+        this.activeProfileLabel = new GText(UI.FONT().S, "").normalify();
+        this.activeProfileLabel.setMaxWidth(activeLabelWidth);
+
+        this.displayNameField = this.buildTextField("Display Name", PROFILE_NAME_MAX_CHARACTERS, this.scratchProfile::displayNameSet, 5);
+        this.profileDropdown = this.buildProfileDropdown(this.displayNameField.body().width());
+
+        GuiSection managementRow = this.buildManagementRow(activeLabelWidth);
+        int requiredWidth = this.managementRowWidth + this.panelHorizontalInset;
+        int maximumWidth = (int) (C.WIDTH() * PANEL_WIDTH_FRACTION);
+        this.panelWidth = Math.clamp(requiredWidth, PANEL_MINIMUM_WIDTH, maximumWidth);
+
+        // A provisional height only - the real one is set in
+        // ensureContentBuilt(). This call exists so inner() reflects the
+        // final WIDTH, which the description field and column count below
+        // both need.
+        this.mainPanel.setDim(this.panelWidth, PANEL_INSET_PROBE_DIMENSION);
+        this.contentAreaWidth = this.mainPanel.inner().width() - GSliderVer.WIDTH();
+
+        int descriptionAvailableWidth = this.mainPanel.inner().width() - this.displayNameField.body().width() - HORIZONTAL_INTER_PADDING;
+        int descriptionCapacity = Math.max(DESCRIPTION_MIN_CHARACTERS,
+                (descriptionAvailableWidth - ThalGInput.PADDING_WIDTH) / ThalGInput.perCharacterAdvance(UI.FONT().S));
+        this.descriptionField = this.buildTextField("Description", descriptionCapacity, this.scratchProfile::descriptionSet);
+
+        GuiSection metadataRow = new GuiSection();
+        metadataRow.addRightC(0, this.displayNameField);
+        metadataRow.addRightC(HORIZONTAL_INTER_PADDING, this.descriptionField);
+        this.topSection.add(managementRow);
+        this.topSection.addDown(HORIZONTAL_INTER_PADDING, metadataRow);
+    }
+
+    // GPanel's decorative frame steals a margin on every side, and its
+    // thickness isn't exposed. Measuring it once by difference keeps every
+    // later calculation working in inner (usable) space without hardcoding
+    // a number that would silently drift if the panel art ever changed.
+    private void measurePanelInsets() {
+        this.mainPanel.setDim(PANEL_INSET_PROBE_DIMENSION, PANEL_INSET_PROBE_DIMENSION);
+        this.panelHorizontalInset = PANEL_INSET_PROBE_DIMENSION - this.mainPanel.inner().width();
+        this.panelVerticalInset = PANEL_INSET_PROBE_DIMENSION - this.mainPanel.inner().height();
     }
 
     // Reflection is required because the game's top-bar UI exposes no
@@ -332,6 +402,9 @@ public final class ThalCapacityUI implements SCRIPT, SCRIPT.SCRIPT_INSTANCE {
     }
 
     private ThalGInput buildTextField(CharSequence placeholderText, int bufferCapacity, Consumer<String> committer) {
+        return buildTextField(placeholderText, bufferCapacity, committer, 0);
+    }
+    private ThalGInput buildTextField(CharSequence placeholderText, int bufferCapacity, Consumer<String> committer, int extraPaddingWidth) {
         StringInputSprite sprite = new StringInputSprite(bufferCapacity, UI.FONT().S) {
             @Override
             protected void change() {
@@ -339,7 +412,7 @@ public final class ThalCapacityUI implements SCRIPT, SCRIPT.SCRIPT_INSTANCE {
                 ThalCapacityUI.this.isDirty = true;
             }
         }.placeHolder(placeholderText);
-        return new ThalGInput(sprite);
+        return new ThalGInput(sprite, extraPaddingWidth);
     }
 
     private GButt.ButtPanel buildStubButton(CharSequence label) {
@@ -417,7 +490,7 @@ public final class ThalCapacityUI implements SCRIPT, SCRIPT.SCRIPT_INSTANCE {
         };
     }
 
-    private void buildTopSection() {
+    private GuiSection buildManagementRow(int activeLabelWidth) {
         GuiSection managementRow = new GuiSection();
         managementRow.addRightC(0, this.profileDropdown);
         managementRow.addRightC(HORIZONTAL_INTER_PADDING, this.buildNewButton());
@@ -426,41 +499,114 @@ public final class ThalCapacityUI implements SCRIPT, SCRIPT.SCRIPT_INSTANCE {
         managementRow.addRightC(HORIZONTAL_INTER_PADDING, this.buildDeleteButton());
         managementRow.addRightC(HORIZONTAL_INTER_PADDING, this.buildOpenFolderButton());
         managementRow.addRightC(HORIZONTAL_INTER_PADDING, this.buildActivateButton());
+
+        int widthBeforeLabel = managementRow.body().width();
         managementRow.addRightC(HORIZONTAL_INTER_PADDING, this.activeProfileLabel);
-        GuiSection metadataRow = new GuiSection();
-        metadataRow.addRightC(0, this.displayNameField);
-        metadataRow.addRightC(HORIZONTAL_INTER_PADDING, this.descriptionField);
-        this.topSection.add(managementRow);
-        this.topSection.addDown(HORIZONTAL_INTER_PADDING, metadataRow);
+        this.managementRowWidth = widthBeforeLabel + HORIZONTAL_INTER_PADDING + activeLabelWidth + MANAGEMENT_WIDTH_PADDING;
+        return managementRow;
     }
 
     private GText buildSectionHeader(CharSequence title) {
         return new GText(UI.FONT().M, title).lablifySub();
     }
 
-    // Formula defaults never change, so compute them once instead of re-evaluating them every frame.
+    // Builds the three tables once, on first open, and settles the panel's
+    // height and column count at the same time.
+    //
+    // Every measurement here comes from a real constructed widget rather
+    // than from arithmetic duplicating buildRows()' own layout, so the two
+    // cannot drift apart: a change to cell padding, font, or margins is
+    // picked up automatically instead of needing a matching edit here.
     private void ensureContentBuilt() {
         if (this.isContentBuilt) {
             return;
         }
-        this.contentViewport.contentAdd(this.buildSectionHeader("Capacity Per Slot"));
-        this.contentViewport.contentAdd(new GText(UI.FONT().S, CAPACITY_EXPLANATION).normalify(), HEADER_TABLE_MARGIN_BOTTOM);
+
+        GText capacityHeader = this.buildSectionHeader("Capacity Per Slot");
+        GText speciesHeader = this.buildSectionHeader("Species Population");
+        GText htypeHeader = this.buildSectionHeader("Subject Type Population");
+        GText capacityExplanation = this.buildExplanation(CAPACITY_EXPLANATION);
+        GText speciesExplanation = this.buildExplanation(SPECIES_EXPLANATION);
+        GText htypeExplanation = this.buildExplanation(HTYPE_EXPLANATION);
+
+        // A throwaway cell, built exactly as a real one is, purely to read
+        // back its true dimensions. Deliberately not added to
+        // allLabeledValues - it is never rendered and must never take part
+        // in validity checks.
+        ThalGLabeledValue probeCell = new ThalGLabeledValue(
+                CAPACITY_MINIMUM,
+                CAPACITY_MAXIMUM,
+                CAPACITY_DECIMAL_PLACES,
+                LABEL_COLUMN_WIDTH,
+                () -> "",
+                () -> 0.0,
+                committedValue -> {},
+                () -> {}
+        );
+        int cellWidth = probeCell.body().width();
+        int cellHeight = probeCell.body().height();
+
+        // n cells occupy n widths plus (n-1) margins, so the margin is
+        // added to the available width before dividing to account for the
+        // one the last cell doesn't need.
+        this.cellsPerRow = Math.max(1,
+                (this.contentAreaWidth + CELL_HORIZONTAL_MARGIN) / (cellWidth + CELL_HORIZONTAL_MARGIN));
+
+        int capacityRows = rowCount(ThalRoomServiceRegistry.roomServicesSorted().size(), this.cellsPerRow);
+        int speciesRows = rowCount(RACES.all().size(), this.cellsPerRow);
+        int htypeRows = rowCount(HTYPES.ALL().size(), this.cellsPerRow);
+
+        int contentHeight =
+                capacityHeader.height() + HEADER_TABLE_MARGIN_BOTTOM + capacityExplanation.height()
+                        + HEADER_TABLE_MARGIN_BOTTOM + capacityRows * cellHeight
+                        + HEADER_TABLE_MARGIN_TOP + speciesHeader.height() + HEADER_TABLE_MARGIN_BOTTOM + speciesExplanation.height()
+                        + HEADER_TABLE_MARGIN_BOTTOM + speciesRows * cellHeight
+                        + HEADER_TABLE_MARGIN_TOP + htypeHeader.height() + HEADER_TABLE_MARGIN_BOTTOM + htypeExplanation.height()
+                        + HEADER_TABLE_MARGIN_BOTTOM + htypeRows * cellHeight;
+
+        int viewportY = this.topSection.body().height() + SECTION_MARGIN;
+        int requiredHeight = viewportY + contentHeight + this.panelVerticalInset;
+        int maximumHeight = (int) (C.HEIGHT() * PANEL_HEIGHT_FRACTION);
+        int panelHeight = Math.min(requiredHeight, maximumHeight);
+
+        this.mainPanel.setDim(this.panelWidth, panelHeight);
+        this.mainPanel.body().centerX(C.DIM());
+        this.mainPanel.body().centerY(C.DIM());
+
+        // Floored defensively: if the height cap ever bites hard enough
+        // that the top section alone fills the panel, a zero or negative
+        // viewport would leave the slider with a nonsensical range.
+        int viewportHeight = Math.max(cellHeight, this.mainPanel.inner().height() - viewportY);
+
+        // Sized from inner() rather than the panel's outer width, so the
+        // viewport ends where the panel's own frame begins instead of
+        // extending underneath it.
+        this.contentViewport = new ThalGSlidableViewportVertical(
+                this.mainPanel.inner().width(),
+                viewportHeight,
+                VIEWPORT_WHEEL_SCROLL_STEP);
+
+        this.topSection.body().moveX1Y1(this.mainPanel.inner().x1(), this.mainPanel.inner().y1());
+        this.contentViewport.body().moveX1Y1(this.mainPanel.inner().x1(), this.mainPanel.inner().y1() + viewportY);
+
+        this.contentViewport.contentAdd(capacityHeader);
+        this.contentViewport.contentAdd(capacityExplanation, HEADER_TABLE_MARGIN_BOTTOM);
         this.capacityCellsByKey = this.buildRows(ThalRoomServiceRegistry.roomServicesSorted(), CAPACITY_MINIMUM, CAPACITY_MAXIMUM, CAPACITY_DECIMAL_PLACES,
                 service -> service.room().key,
                 service -> service.room().info.name,
                 service -> service.hypotheticalCapacityPerSlot(),
                 this.scratchProfile::capacityPerSlotSet,
                 this.scratchProfile::capacityPerSlotRemove);
-        this.contentViewport.contentAdd(this.buildSectionHeader("Species Population"), HEADER_TABLE_MARGIN_TOP);
-        this.contentViewport.contentAdd(new GText(UI.FONT().S, SPECIES_EXPLANATION).normalify(), HEADER_TABLE_MARGIN_BOTTOM);
+        this.contentViewport.contentAdd(speciesHeader, HEADER_TABLE_MARGIN_TOP);
+        this.contentViewport.contentAdd(speciesExplanation, HEADER_TABLE_MARGIN_BOTTOM);
         this.speciesCellsByKey = this.buildRows(RACES.all(), POPULATION_MINIMUM, POPULATION_MAXIMUM, POPULATION_DECIMAL_PLACES,
                 race -> race.key,
                 race -> race.info.names,
                 race -> 0.0,
                 this.scratchProfile::speciesPopulationSet,
                 this.scratchProfile::speciesPopulationRemove);
-        this.contentViewport.contentAdd(this.buildSectionHeader("Subject Type Population"), HEADER_TABLE_MARGIN_TOP);
-        this.contentViewport.contentAdd(new GText(UI.FONT().S, HTYPE_EXPLANATION).normalify(), HEADER_TABLE_MARGIN_BOTTOM);
+        this.contentViewport.contentAdd(htypeHeader, HEADER_TABLE_MARGIN_TOP);
+        this.contentViewport.contentAdd(htypeExplanation, HEADER_TABLE_MARGIN_BOTTOM);
         this.htypeCellsByKey = this.buildRows(HTYPES.ALL(), POPULATION_MINIMUM, POPULATION_MAXIMUM, POPULATION_DECIMAL_PLACES,
                 hType -> hType.key,
                 hType -> hType.name,
@@ -468,6 +614,20 @@ public final class ThalCapacityUI implements SCRIPT, SCRIPT.SCRIPT_INSTANCE {
                 this.scratchProfile::htypePopulationSet,
                 this.scratchProfile::htypePopulationRemove);
         this.isContentBuilt = true;
+    }
+
+    // Capped to the content area so a long explanation wraps instead of
+    // running past the panel's right edge - the viewport only scrolls
+    // vertically, so horizontal overflow has no way to be reached.
+    private GText buildExplanation(CharSequence text) {
+        GText explanation = new GText(UI.FONT().S, text).normalify();
+        explanation.setMaxWidth(this.contentAreaWidth);
+        explanation.adjustWidth();
+        return explanation;
+    }
+
+    private static int rowCount(int itemCount, int cellsPerRow) {
+        return (itemCount + cellsPerRow - 1) / cellsPerRow;
     }
 
     private <T> Map<String, ThalGLabeledValue> buildRows(Iterable<T> sourceItems, double minimumValue, double maximumValue, int decimalPlaces,
@@ -481,9 +641,9 @@ public final class ThalCapacityUI implements SCRIPT, SCRIPT.SCRIPT_INSTANCE {
             items.add(item);
         }
         Map<String, ThalGLabeledValue> cellsByKey = new HashMap<>();
-        for (int rowStart = 0; rowStart < items.size(); rowStart += CELLS_PER_ROW) {
+        for (int rowStart = 0; rowStart < items.size(); rowStart += this.cellsPerRow) {
             GuiSection row = new GuiSection();
-            int rowEnd = Math.min(rowStart + CELLS_PER_ROW, items.size());
+            int rowEnd = Math.min(rowStart + this.cellsPerRow, items.size());
             for (int i = rowStart; i < rowEnd; i++) {
                 T item = items.get(i);
                 String key = keyExtractor.apply(item);
@@ -925,17 +1085,19 @@ public final class ThalCapacityUI implements SCRIPT, SCRIPT.SCRIPT_INSTANCE {
     // once update() has fired at least once, by which point the Manager
     // is guaranteed to exist; no need to distinguish the two here.
     //
-    // KNOWN LIMITATION: no max-width/truncation set on this label, unlike
-    // GLabeledValue's own internal label (which does call setMaxWidth()).
-    // A sufficiently long active profile name could visually overflow past
-    // the panel's right edge - not fixed here, since the right truncation
-    // width depends on how much horizontal room the OTHER buttons in this
-    // same row actually leave, which wasn't measured precisely.
+    // The label is width-capped in buildUI() (prefix plus
+    // PROFILE_NAME_MAX_CHARACTERS) and that same width is reserved for it
+    // when the management row is measured, so a long name truncates rather
+    // than pushing past the panel's right edge. The cap is deliberately
+    // derived from the name field's own character limit, but applied as a
+    // ceiling rather than assumed: Str.add() grows its buffer on demand, so
+    // a name can still exceed that limit via Duplicate's "Copy of " prefix
+    // or a hand-edited profile file.
     private void refreshActiveProfileLabel() {
         ThalCapacityProfileManager manager = ThalCapacityProfileManager.instance();
         ThalCapacityProfile activeProfile = manager == null ? null : manager.activeProfile();
         String activeProfileName = activeProfile == null ? "None" : activeProfile.displayName();
-        this.activeProfileLabel.clear().add("Active: " + activeProfileName);
+        this.activeProfileLabel.clear().add(ACTIVE_PROFILE_PREFIX + activeProfileName);
     }
 
 
