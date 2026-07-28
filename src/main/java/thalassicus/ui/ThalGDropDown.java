@@ -178,6 +178,21 @@ public class ThalGDropDown<E extends CLICKABLE & ThalDropDownEntry> extends CLIC
             }
         }
 
+        /*
+         * Give every entry the full row width.
+         *
+         * ClickWrap delegates hit-testing to the wrapped entry's own body
+         * while the row highlight is drawn across the whole row, so an
+         * entry sized to its text leaves the rest of the highlighted row
+         * unclickable. Widening the body makes the two agree.
+         *
+         * Also makes hit-testing independent of how the label happens to
+         * measure, which is what varies between installs.
+         */
+        for (E e : this.es) {
+            e.availableWidthSet(w);
+        }
+
         this.dummy.body.setWidth(w).setHeight(h);
         /*
          * Deliberately do not call ArrayListResize.trim().
