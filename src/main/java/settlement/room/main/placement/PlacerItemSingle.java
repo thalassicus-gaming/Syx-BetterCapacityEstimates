@@ -321,7 +321,7 @@ class PlacerItemSingle extends PlacableFixed {
 
                     box.NL();
                     box.add(box.text().normalify().add((int) Math.ceil(statValue * service.hypotheticalCapacityPerSlot())));
-                    box.add(box.text().normalify().add(" (Estimate)"));
+                    box.add(box.text().normalify().add(" (Vanilla)"));
                 } else {
                     box.NL();
                     box.add(box.text().lablify().add(stat.name()));

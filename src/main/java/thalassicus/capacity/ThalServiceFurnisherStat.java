@@ -67,7 +67,7 @@ public class ThalServiceFurnisherStat extends FurnisherStat {
         t.NL();
 
         GFORMAT.i(t.normalify(), (int) Math.ceil(acc * p.service().hypotheticalCapacityPerSlot()));
-        t.lablify().add(" (Estimate)");
+        t.lablify().add(" (Vanilla)");
         return t;
     }
 }
